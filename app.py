@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, request, jsonify, render_template
 from werkzeug.security import generate_password_hash, check_password_hash
 import jwt, datetime
 from functools import wraps
@@ -30,6 +30,8 @@ def create_tables():
 @app.route('/register', methods=['POST'])
 def register():
     data = request.json
+    if not data.get('username') or not data.get('password'):
+        return jsonify({'message': 'Username and password are required'}), 400
     hashed_pw = generate_password_hash(data['password'], method='sha256')
     new_user = User(username=data['username'], password=hashed_pw)
     db.session.add(new_user)
@@ -50,12 +52,28 @@ def login():
 def notes(current_user):
     if request.method == 'POST':
         data = request.json
-        note = Note(content=data['content'], user_id=current_user.id)
+        if not data.get('title') or not data.get('content'):
+            return jsonify({'message': 'Title and content are required'}), 400
+        note = Note(title=data['title'], content=data['content'], user_id=current_user.id)
         db.session.add(note)
         db.session.commit()
         return jsonify({'message': 'Note added!'})
     notes = Note.query.filter_by(user_id=current_user.id).all()
-    return jsonify([{'id': n.id, 'content': n.content} for n in notes])
+    return jsonify([{'id': n.id, 'title': n.title, 'content': n.content, 'created_at': n.created_at.isoformat()} for n in notes])
 
+@app.route('/notes/<int:note_id>', methods=['DELETE'])
+@token_required
+def delete_note(current_user, note_id):
+    note = Note.query.filter_by(id=note_id, user_id=current_user.id).first()
+    if not note:
+        return jsonify({'message': 'Note not found'}), 404
+    db.session.delete(note)
+    db.session.commit()
+    return jsonify({'message': 'Note deleted'})
+    
 if __name__ == '__main__':
     app.run(debug=True)
+
+@app.route('/')
+def home():
+    return render_template('index.html')
