@@ -73,5 +73,4 @@ python app.py
 
 ## Author
 
-Noel Francisco Prado Bucaro  
-GitHub: https://github.com/yourusername
+Noel Francisco Prado Bucaro 
